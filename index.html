@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hotel Cairoli – Tour Virtuale 360°</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <!-- Pannellum 360° viewer -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css" />
+  <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+
+  <style>
+    /* ─── TOKENS ───────────────────────────────────────────── */
+    :root {
+      --bg:        #0d0d0d;
+      --card:      rgba(18, 18, 18, 0.88);
+      --border:    rgba(255,255,255,0.08);
+      --gold:      #c9a84c;
+      --gold-dim:  rgba(201,168,76,0.15);
+      --text:      #f2ede6;
+      --muted:     rgba(242,237,230,0.55);
+      --pill-bg:   rgba(255,255,255,0.07);
+      --radius:    16px;
+      --font-head: 'Playfair Display', serif;
+      --font-body: 'DM Sans', sans-serif;
+    }
+
+    /* ─── RESET ────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; font-family: var(--font-body); background: var(--bg); color: var(--text); }
+
+    /* ─── BACKGROUND ───────────────────────────────────────── */
+    #bg {
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 70% 55% at 50% 80%, #1a1208 0%, transparent 70%),
+        radial-gradient(ellipse 100% 60% at 50% 100%, #0d0d0d 0%, transparent 100%),
+        url('https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=1600&q=80') center/cover no-repeat;
+      filter: brightness(0.55) saturate(0.8);
+    }
+    /* Tiny-planet vignette ring at bottom */
+    #bg::after {
+      content: '';
+      position: absolute;
+      bottom: -30vw; left: 50%;
+      transform: translateX(-50%);
+      width: 90vw; height: 90vw;
+      border-radius: 50%;
+      border: 2px solid rgba(201,168,76,0.18);
+      box-shadow: 0 0 80px 20px rgba(201,168,76,0.06);
+      pointer-events: none;
+    }
+
+    /* ─── LOGO ─────────────────────────────────────────────── */
+    #logo {
+      position: fixed; top: 22px; left: 24px; z-index: 10;
+      font-family: var(--font-head); font-size: 1.5rem;
+      letter-spacing: 0.06em; color: var(--text);
+      display: flex; align-items: center; gap: 2px;
+    }
+    #logo span { color: var(--gold); }
+
+    /* ─── FULLSCREEN TOUR (hidden by default) ───────────────── */
+    #tour-container {
+      display: none;
+      position: fixed; inset: 0; z-index: 5;
+      background: #000;
+    }
+    #pannellum-viewer { width: 100%; height: 100%; }
+
+    /* back button shown when tour is active */
+    #back-btn {
+      display: none;
+      position: fixed; top: 18px; right: 18px; z-index: 20;
+      background: rgba(0,0,0,0.6); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font-body); font-size: 0.78rem;
+      letter-spacing: 0.08em; padding: 8px 16px; border-radius: 100px;
+      cursor: pointer; backdrop-filter: blur(8px);
+      transition: background 0.2s;
+    }
+    #back-btn:hover { background: rgba(0,0,0,0.85); }
+
+    /* ─── SPLASH OVERLAY ───────────────────────────────────── */
+    #splash {
+      position: fixed; inset: 0; z-index: 6;
+      display: flex; align-items: flex-end; justify-content: center;
+      padding: 0 16px 32px;
+      animation: fadeIn 0.8s ease both;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ─── CARD ─────────────────────────────────────────────── */
+    .card {
+      width: 100%; max-width: 520px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(24px) saturate(1.4);
+      padding: 24px 24px 20px;
+      display: flex; flex-direction: column; gap: 18px;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04) inset;
+    }
+
+    /* top row: avatar + title */
+    .card-header { display: flex; align-items: flex-start; gap: 16px; }
+    .avatar {
+      flex-shrink: 0;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: linear-gradient(135deg, #c9a84c 0%, #8b6914 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+      box-shadow: 0 0 0 3px rgba(201,168,76,0.25);
+    }
+    .header-text h1 {
+      font-family: var(--font-head); font-size: 1.25rem;
+      font-weight: 700; line-height: 1.2; color: var(--text);
+    }
+    .header-text p {
+      margin-top: 5px; font-size: 0.78rem; color: var(--muted); line-height: 1.5;
+    }
+
+    /* divider */
+    hr { border: none; border-top: 1px solid var(--border); }
+
+    /* nav section */
+    .nav-title {
+      font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--gold); font-weight: 500; margin-bottom: 6px;
+    }
+    .nav-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+
+    /* controls grid */
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .ctrl {
+      background: var(--pill-bg);
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 10px 12px; display: flex; align-items: center; gap: 10px;
+    }
+    .ctrl-icon { font-size: 1.1rem; flex-shrink: 0; }
+    .ctrl-text strong { display: block; font-size: 0.78rem; font-weight: 500; color: var(--text); }
+    .ctrl-text span  { font-size: 0.7rem; color: var(--muted); }
+
+    /* social row */
+    .socials { display: flex; flex-wrap: wrap; gap: 8px; }
+    .social-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--pill-bg); border: 1px solid var(--border);
+      border-radius: 100px; padding: 6px 14px;
+      font-size: 0.72rem; color: var(--text); text-decoration: none;
+      letter-spacing: 0.03em; transition: background 0.15s, border-color 0.15s;
+    }
+    .social-btn:hover { background: var(--gold-dim); border-color: var(--gold); }
+
+    /* CTA */
+    .cta {
+      width: 100%; padding: 15px;
+      background: linear-gradient(135deg, #c9a84c 0%, #a07830 100%);
+      border: none; border-radius: 10px;
+      font-family: var(--font-body); font-size: 0.8rem;
+      letter-spacing: 0.16em; text-transform: uppercase;
+      font-weight: 500; color: #0d0d0d;
+      cursor: pointer; transition: opacity 0.2s, transform 0.15s;
+    }
+    .cta:hover  { opacity: 0.92; transform: translateY(-1px); }
+    .cta:active { transform: translateY(0); }
+
+    /* contact icons row */
+    .contacts { display: flex; gap: 10px; }
+    .contact-btn {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--pill-bg); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; text-decoration: none; color: var(--text);
+      transition: background 0.15s;
+    }
+    .contact-btn:hover { background: var(--gold-dim); }
+
+    /* bottom row: contacts left + cta right stacked on mobile */
+    .card-footer { display: flex; flex-direction: column; gap: 12px; }
+  </style>
+</head>
+<body>
+
+  <!-- Background layer -->
+  <div id="bg"></div>
+
+  <!-- Logo -->
+  <div id="logo">GIR<span>O</span></div>
+
+  <!-- Back button (shown when tour is open) -->
+  <button id="back-btn" onclick="closeTour()">← Torna alla scheda</button>
+
+  <!-- Pannellum fullscreen container -->
+  <div id="tour-container">
+    <div id="pannellum-viewer"></div>
+  </div>
+
+  <!-- ══ SPLASH CARD ══════════════════════════════════════════ -->
+  <div id="splash">
+    <div class="card">
+
+      <!-- Header -->
+      <div class="card-header">
+        <div class="avatar">🏛️</div>
+        <div class="header-text">
+          <h1>Hotel Cairoli</h1>
+          <p>Benvenuto nel tour virtuale interattivo.<br>
+             Esplora ogni ambiente liberamente e scopri tutti i dettagli della struttura in modo immersivo.</p>
+        </div>
+      </div>
+
+      <hr />
+
+      <!-- Navigation guide -->
+      <div>
+        <div class="nav-title">Come navigare il tour</div>
+        <p class="nav-desc">Muoviti liberamente all'interno della struttura usando il mouse, la tastiera o le dita su dispositivi touch.</p>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <div class="ctrl">
+          <span class="ctrl-icon">🖱️</span>
+          <div class="ctrl-text">
+            <strong>Guarda intorno</strong>
+            <span>Clicca e trascina</span>
+          </div>
+        </div>
+        <div class="ctrl">
+          <span class="ctrl-icon">🔍</span>
+          <div class="ctrl-text">
+            <strong>Zoom</strong>
+            <span>Rotella del mouse</span>
+          </div>
+        </div>
+        <div class="ctrl">
+          <span class="ctrl-icon">👆</span>
+          <div class="ctrl-text">
+            <strong>Scorri</strong>
+            <span>Trascina con il dito</span>
+          </div>
+        </div>
+        <div class="ctrl">
+          <span class="ctrl-icon">🤏</span>
+          <div class="ctrl-text">
+            <strong>Pizzica</strong>
+            <span>Pinch per lo zoom</span>
+          </div>
+        </div>
+      </div>
+
+      <hr />
+
+      <!-- Socials -->
+      <div class="socials">
+        <a class="social-btn" href="https://instagram.com/hotelcairoli" target="_blank">
+          📸 Instagram
+        </a>
+        <a class="social-btn" href="https://wa.me/39XXXXXXXXXX" target="_blank">
+          💬 WhatsApp
+        </a>
+        <a class="social-btn" href="mailto:info@hotelcairoli.it">
+          ✉️ Email
+        </a>
+        <a class="social-btn" href="https://hotelcairoli.it" target="_blank">
+          🌐 Sito Web
+        </a>
+      </div>
+
+      <!-- Footer: contacts + CTA -->
+      <div class="card-footer">
+        <div class="contacts">
+          <a class="contact-btn" href="https://wa.me/39XXXXXXXXXX" target="_blank" title="WhatsApp">💬</a>
+          <a class="contact-btn" href="tel:+39XXXXXXXXXX" title="Chiama">📞</a>
+          <a class="contact-btn" href="mailto:info@hotelcairoli.it" title="Email">✉️</a>
+        </div>
+        <button class="cta" onclick="startTour()">Inizia il Tour →</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    /* ─────────────────────────────────────────────────────────
+       CONFIGURATION — Edit these values before deploying
+       ───────────────────────────────────────────────────────── */
+    const TOUR_CONFIG = {
+      /*
+        Option A – Pannellum equirectangular image (local file or CDN URL)
+        Replace with your actual 360° photo URL:
+      */
+      imageUrl: "https://pannellum.org/images/cerro-toco-0.jpg", // ← REPLACE
+
+      /*
+        Option B – If you have an external embed URL (Matterport, Kuula, etc.)
+        set useIframe: true and paste the embed URL below.
+        If useIframe is false, Pannellum is used instead.
+      */
+      useIframe: true,
+iframeSrc: "https://pano.cool/@giro360.casa/shis-project",
+      // Pannellum options
+      title:       "Hotel Cairoli",
+      author:      "Giro360",
+      autoLoad:    true,
+      autoRotate:  -2,
+      compass:     false,
+      showControls: true,
+      hotSpots:    [] // Add hotspots here if needed
+    };
+    /* ─────────────────────────────────────────────────────────── */
+
+    let viewer = null;
+
+    function startTour() {
+      document.getElementById('splash').style.display = 'none';
+      document.getElementById('tour-container').style.display = 'block';
+      document.getElementById('back-btn').style.display = 'block';
+
+      if (TOUR_CONFIG.useIframe) {
+        // Embed via iframe (Matterport / Kuula / any external service)
+        document.getElementById('pannellum-viewer').innerHTML =
+          `<iframe src="${TOUR_CONFIG.iframeSrc}"
+             style="width:100%;height:100%;border:none;"
+             allowfullscreen allow="vr; xr; accelerometer; gyroscope">
+           </iframe>`;
+      } else {
+        // Use Pannellum with equirectangular image
+        if (!viewer) {
+          viewer = pannellum.viewer('pannellum-viewer', {
+            type:         'equirectangular',
+            panorama:     TOUR_CONFIG.imageUrl,
+            title:        TOUR_CONFIG.title,
+            author:       TOUR_CONFIG.author,
+            autoLoad:     TOUR_CONFIG.autoLoad,
+            autoRotate:   TOUR_CONFIG.autoRotate,
+            compass:      TOUR_CONFIG.compass,
+            showControls: TOUR_CONFIG.showControls,
+            hotSpots:     TOUR_CONFIG.hotSpots,
+            uiText: {
+              loadButtonLabel:   "Avvia il tour",
+              loadingLabel:      "Caricamento…",
+              bylineLabel:       "di",
+              noPanoramaError:   "Nessun panorama caricato.",
+              fileAccessError:   "Impossibile accedere al file: %s",
+              malformedURLError: "URL del panorama non valido.",
+              iOS8WebGLError:    "Aggiorna iOS per visualizzare il tour.",
+              genericWebGLError: "WebGL non supportato su questo browser.",
+              textureSizeError:  "Immagine troppo grande: %spx (max %spx).",
+              unknownError:      "Errore sconosciuto."
+            }
+          });
+        }
+      }
+    }
+
+    function closeTour() {
+      document.getElementById('splash').style.display = 'flex';
+      document.getElementById('tour-container').style.display = 'none';
+      document.getElementById('back-btn').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
